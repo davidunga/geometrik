@@ -25,6 +25,10 @@ def get_shape_points(shape, b=None):
         t = np.linspace(0, np.pi, 1000)
         X = np.stack([t, np.sin(t)], axis=0).T
 
+    elif shape == 'full_sine':
+        t = np.linspace(0, 2 * np.pi, 1000)
+        X = np.stack([t, np.sin(t)], axis=0).T
+
     elif shape == 'hyperbola':
         b = 2 if b is None else b
         t = np.linspace(1e-1, np.pi - 1e-1, 1000) - .5 * np.pi
@@ -139,6 +143,6 @@ def test_metrics(shape=None):
 
 
 if __name__ == "__main__":
-    #show_geometric_properties('ellipse')
+    #show_geometric_properties('sine')
     #test_invariance()
     test_metrics()

@@ -2,7 +2,6 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 
-
 def randmat(det=None, ortho=False):
     """
     Random 2d square matrix
@@ -37,7 +36,7 @@ def derivative(X, t, n=1):
     :param X: 2d array, NxD, N = points, D = dim
     :param t: 1d array, parameter to differentiate by.
     :param n: order of derivative
-    :return: drvs: list of length n, drvs[i] contains the i-th order derivative of X
+    :return: drvs: list of length n, drvs[i] contains the (i+1)-th order derivative of X
     """
     X = np.expand_dims(X, axis=1) if X.ndim == 1 else X
     drvs = []
@@ -49,6 +48,19 @@ def derivative(X, t, n=1):
     return drvs
 
 
+def winding_angle(X: np.ndarray):
+    dX = np.diff(X, axis=0)
+    thetas = np.unwrap(np.arctan2(dX[:, 1], dX[:, 0]))
+    thetas = np.concatenate([thetas, [2 * thetas[-1] - thetas[-2]]])
+    return thetas
+
+
+def inflection_points(X: np.ndarray):
+    """ Index of inflection points in curve """
+    ixs = np.nonzero(np.diff(np.sign(np.diff(winding_angle(X)))))[0]
+    if len(ixs) > 0:
+        ixs += 2
+    return ixs
 
 
 def _dbg_show_drvs(X, t, n):
@@ -64,6 +76,5 @@ def _dbg_show_drvs(X, t, n):
 
 
 if __name__ == "__main__":
-    X, t = _get_shape_points('ellipse')
     _dbg_show_drvs(X, t, 3)
 

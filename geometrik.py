@@ -3,11 +3,6 @@ from enum import Enum
 from utils import derivative, extrap_boundaries, randmat
 from scipy.integrate import cumtrapz
 
-try:
-    import matplotlib.pyplot as plt
-except:
-    pass
-
 
 # =========================================================
 
@@ -21,16 +16,25 @@ class GEOMETRY(Enum):
 GEOMETRIES = [e for e in GEOMETRY]
 
 
-def arclen(X, geom: GEOMETRY):
+def _check_curve(X: np.ndarray, geom: GEOMETRY = None):
+    if geom == GEOMETRY.EUCLIDEAN:
+        assert X.ndim == 2 and X.shape[1] >= 2, "Curve must be a NxD ndarray, with D>=2"
+    else:
+        assert X.ndim == 2 and X.shape[1] == 2, "Curve must be a Nx2 ndarray"
+
+
+# =========================================================
+
+def arclen(X: np.ndarray, geom: GEOMETRY):
     """
-    Cumulative arc length of path, in a given geometry,
-    :param X: path, NxD, N = number of points, D = dimension
+    Cumulative arc length of curve, in a given geometry,
+    :param X: Curve as ndarray. For Full/Equi affine, curve must be planar (shape: Nx2), for
+        Euclidean, curve can be in any dimension (shape: NxD).
     :param geom: Geometry to use.
     :return: s - 1d array, s[i] is the arclength from X[0] to X[i].
         s[-1] is the total arclength.
         s[0] is always zero.
     """
-
     assert geom in GEOMETRIES
     return {
         GEOMETRY.EUCLIDEAN: euclidean_arclen,
@@ -39,14 +43,14 @@ def arclen(X, geom: GEOMETRY):
     }[geom](X)
 
 
-def curvature(X, geom: GEOMETRY):
+def curvature(X: np.ndarray, geom: GEOMETRY):
     """
     Curvature at each point along path, measured in a given geometry.
-    :param X: path, NxD, N = number of points, D = dimension.
+    :param X: Curve as ndarray. For Full/Equi affine, curve must be planar (shape: Nx2), for
+        Euclidean, curve can be in any dimension (shape: NxD).
     :param geom: Geometry to use.
     :return: k: 1d array of length N. k[i] is the curvature at X[i], (nan if undefined).
     """
-
     assert geom in GEOMETRIES
     return {
         GEOMETRY.EUCLIDEAN: euclidean_curvature,
@@ -55,13 +59,14 @@ def curvature(X, geom: GEOMETRY):
     }[geom](X)
 
 
-def uniform_resample(X, geom: GEOMETRY):
+def uniform_resample(X: np.ndarray, geom: GEOMETRY):
     """
-    Resample path uniformly
-    :param X: path, NxD, N = number of points, D = dimension
+    Resample path uniformly, according to a given geometry.
+    :param X: Curve as NxD numpy array, N = number of points, D = dimension
     :param geom: Geometry to go by
     :return: resampled path, same size as input
     """
+    _check_curve(X, geom)
     s_current = arclen(X, geom)
     s_uniform = np.linspace(0, s_current[-1], len(X))
     X = np.copy(X)
@@ -70,7 +75,18 @@ def uniform_resample(X, geom: GEOMETRY):
     return X, s_uniform
 
 
-def arclens_and_curvatures(X):
+def arclens_and_curvatures(X: np.ndarray):
+    """
+    Arc length and curvature of curve in all 3 geometries
+    :param X: Planar curve as Nx2 numpy array
+    :return:
+        s0 = 1d numpy array. s0[i] is the full-affine arc length from X[0] to X[i].
+        s1 = 1d numpy array. s1[i] is the equi-affine arc length from X[0] to X[i].
+        s2 = 1d numpy array. s2[i] is the euclidean arc length from X[0] to X[i].
+        k0 = 1d numpy array. k0[i] is the full-affine curvature around point X[i].
+        k1 = 1d numpy array. k1[i] is the equi-affine curvature around point X[i].
+        k2 = 1d numpy array. k2[i] is the euclidean curvature around point X[i].
+    """
     s2 = euclidean_arclen(X)
     k2 = euclidean_curvature(X)
     s1 = equi_affine_arclen(X)
@@ -83,7 +99,15 @@ def arclens_and_curvatures(X):
 # =========================================================
 
 
-def equi_affine_arclen(X):
+def equi_affine_arclen(X: np.ndarray):
+    """
+    Cumulative equi-affine arc length of curve
+    :param X: Planar curve as Nx2 numpy array
+    :return: s1 - 1d array, s1[i] is the arclength from X[0] to X[i].
+        s1[-1] is the total arclength.
+        s1[0] is always zero.
+    """
+    _check_curve(X)
     t = np.linspace(0, 1, len(X))
     dX1, dX2 = derivative(X, t, n=2)
     dets = dX1[:, 0] * dX2[:, 1] - dX1[:, 1] * dX2[:, 0]
@@ -91,7 +115,14 @@ def equi_affine_arclen(X):
     return s1
 
 
-def equi_affine_curvature(X, s1=None):
+def equi_affine_curvature(X: np.ndarray, s1: np.ndarray = None):
+    """
+    Pointwise equi-affine curvature
+    :param X: Planar curve as Nx2 numpy array
+    :param s1: 1d ndarray, equi-affine arclength (to avoid re-computing)
+    :return: k1 - 1d ndarray, k1[i] is the curvature around point X[i]
+    """
+    _check_curve(X)
     s1 = equi_affine_arclen(X) if s1 is None else s1
     dX1, dX2, dX3 = derivative(X, s1, n=3)
     k1 = dX2[:, 0] * dX3[:, 1] - dX2[:, 1] * dX3[:, 0]
@@ -99,7 +130,15 @@ def equi_affine_curvature(X, s1=None):
     return k1
 
 
-def full_affine_arclen(X, k1=None, s1=None):
+def full_affine_arclen(X: np.ndarray, k1: np.ndarray = None, s1: np.ndarray = None):
+    """
+    Cumulative full-affine arc length of curve
+    :param X: Planar curve as Nx2 numpy array
+    :return: s0 - 1d array, s0[i] is the arclength from X[0] to X[i].
+        s0[-1] is the total arclength.
+        s0[0] is always zero.
+    """
+    _check_curve(X)
     if s1 is None:
         s1 = equi_affine_arclen(X)
     if k1 is None:
@@ -108,7 +147,15 @@ def full_affine_arclen(X, k1=None, s1=None):
     return s0
 
 
-def full_affine_curvature(X, k1=None, s1=None):
+def full_affine_curvature(X: np.ndarray, k1: np.ndarray = None, s1: np.ndarray = None):
+    """
+    Pointwise full-affine curvature
+    :param X: Planar curve as Nx2 numpy array
+    :param k1: 1d ndarray, equi-affine curvature (to avoid re-computing)
+    :param s1: 1d ndarray, equi-affine arclength (to avoid re-computing)
+    :return: k0 - 1d ndarray, k0[i] is the curvature around point X[i]
+    """
+    _check_curve(X)
     _eps = 1e-4
     if s1 is None:
         s1 = equi_affine_arclen(X)
@@ -127,14 +174,26 @@ def full_affine_curvature(X, k1=None, s1=None):
     return k0
 
 
-def euclidean_arclen(X):
+def euclidean_arclen(X: np.ndarray):
+    """
+    Cumulative euclidean arc length of a curve
+    :param X: Curve as NxD ndarray - N points x D dimensions
+    :return: s2 - 1d array, s2[i] is the arclength from X[0] to X[i].
+        s2[-1] is the total arclength.
+        s2[0] is always zero.
+    """
+    _check_curve(X, GEOMETRY.EUCLIDEAN)
     s2 = np.concatenate([[0], np.cumsum(np.sqrt(np.sum(np.diff(X, axis=0) ** 2, axis=1)))])
     return s2
 
 
-def euclidean_curvature(X):
-    assert len(X) > 2, "At least 3 points are required"
-    assert X.shape[1] > 1, "Curvature is undefined for dim < 2"
+def euclidean_curvature(X: np.ndarray):
+    """
+    Pointwise Euclidean curvature
+    :param X: Curve as NxD ndarray - N points x D dimensions
+    :return: k2 - 1d ndarray, k2[i] is the curvature around point X[i]
+    """
+    _check_curve(X, GEOMETRY.EUCLIDEAN)
     a = np.linalg.norm(X[1:-1] - X[:-2], axis=1)
     b = np.linalg.norm(X[2:] - X[1:-1], axis=1)
     c = np.linalg.norm(X[2:] - X[:-2], axis=1)
@@ -144,13 +203,14 @@ def euclidean_curvature(X):
     return k2
 
 
-def rand_transform(X, geom: GEOMETRY):
+def rand_transform(X: np.ndarray, geom: GEOMETRY):
     """
     Randomly transform curve in a manner that maintains invariance under given geometry
     :param X: Curve to transform (2d ndarry)
     :param geom: Geometry for invariance
     :return: Transformed curve (same size as input)
     """
+    _check_curve(X)
     if geom == GEOMETRY.FULL_AFFINE:
         det_range = [.2, 10.0]  # constrain the determinant to avoid singularities
         m = randmat(det=(det_range[1] - det_range[0]) * np.random.rand() + det_range[0])
