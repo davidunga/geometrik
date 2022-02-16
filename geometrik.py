@@ -66,12 +66,13 @@ def uniform_resample(X: np.ndarray, geom: GEOMETRY):
     :param geom: Geometry to go by
     :return: resampled path, same size as input
     """
+    from scipy.interpolate import interp1d
     _check_curve(X, geom)
     s_current = arclen(X, geom)
     s_uniform = np.linspace(0, s_current[-1], len(X))
     X = np.copy(X)
     for j in range(X.shape[1]):
-        X[:, j] = np.interp(s_uniform, s_current, X[:, j])
+        X[:, j] = interp1d(s_current, X[:, j], kind='cubic')(s_uniform)
     return X, s_uniform
 
 
@@ -198,8 +199,15 @@ def euclidean_curvature(X: np.ndarray):
     b = np.linalg.norm(X[2:] - X[1:-1], axis=1)
     c = np.linalg.norm(X[2:] - X[:-2], axis=1)
     k2 = np.zeros(len(X))
-    k2[1:-1] = a * b * c / np.sqrt((a+b+c) * (b+c-a) * (c+a-b) * (a+b-c))
+    k2[1:-1] = np.true_divide(np.sqrt((a+b+c) * (b+c-a) * (c+a-b) * (a+b-c)), a * b * c)
     k2 = extrap_boundaries(k2, b=1)
+    from utils import inflection_points, winding_angle
+    t = np.sign(np.diff(winding_angle(X)))
+    t = np.r_[t[0], t]
+    #k2 *= t
+    #print(np.any(k2 < 0))
+    #p = inflection_points(X)
+
     return k2
 
 
