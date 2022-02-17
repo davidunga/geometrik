@@ -1,6 +1,6 @@
 import numpy as np
 from dataclasses import dataclass
-from representations import xy_to_rt, rt_to_xy
+from representations import CURVE_REP, Curve
 
 
 @dataclass
@@ -49,14 +49,10 @@ class HuhCurve:
         n = res if res > 1 else int(round(self.period() / res))
         return np.linspace(0, self.period(), n)
 
-    def full_period_xy(self, res):
-        """
-        xy coordinates of a full period of the curve
-        :param res: resolution. either number of samples (>1), or the sampling step (<1)
-        """
+    def full_period_curve(self, res):
         t = self.full_period_thetas(res)
         r = np.exp(self.log_r(t))
-        return rt_to_xy(r, t)
+        return Curve((t, r), CURVE_REP.RADIUS_PROFILE)
 
     def log_r(self, t: np.ndarray):
         """
@@ -80,9 +76,10 @@ class HuhCurve:
 
 
 def test():
+    import matplotlib.pyplot as plt
 
     def _plot(h: HuhCurve, *args, **kwargs):
-        X = h.full_period_xy(0.1)
+        X = h.full_period_curve(0.1).xy()
         plt.plot(X[:, 0], X[:, 1], *args, **kwargs)
         plt.axis('square')
 
@@ -102,40 +99,4 @@ def test():
 
 
 if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    #test()
-
-    h = HuhCurve(HuhParams(m=3, n=2, eps=0.8))
-
-    t = h.full_period_thetas(.01)
-    t = t[:int(.3*len(t))]
-    r = np.exp(h.log_r(t))
-
-    X = rt_to_xy(r, t)
-    rr, tt = xy_to_rt(X)
-    XX = rt_to_xy(rr, tt)
-
-    plt.plot(t,'r')
-    plt.plot(0,t[0],'ro')
-    plt.plot(tt,'b')
-    plt.plot(0,tt[0],'bo')
-    plt.show()
-
-    _, (ax1, ax2) = plt.subplots(ncols=2, nrows=1)
-    plt.sca(ax1)
-    plt.plot(t, r, 'r')
-    i1 = np.argmax(r)
-    plt.plot(t[i1], r[i1], 'sr')
-    plt.plot(t[0], r[0], 'or')
-    plt.plot(tt, rr, 'b')
-    i2 = np.argmax(rr)
-    plt.plot(tt[i2], rr[i2], 'sb')
-    plt.plot(tt[0], rr[0], 'ob')
-    plt.sca(ax2)
-    plt.plot(X[:, 0], X[:, 1], 'r.')
-    plt.plot(X[0, 0], X[0, 1], 'ro')
-    plt.plot(X[i1, 0], X[i1, 1], 'rs')
-    plt.plot(XX[:, 0], XX[:, 1], 'b.')
-    plt.plot(XX[0, 0], XX[0, 1], 'bo')
-    plt.plot(XX[i2, 0], XX[i2, 1], 'bs')
-    plt.show()
+    test()
