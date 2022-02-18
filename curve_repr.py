@@ -1,3 +1,9 @@
+"""
+Curve Representations.
+Allows parameterizing curves as Cartesian, Radius-Profile, or Angle-Profile, and
+    converting between the representations.
+"""
+
 import numpy as np
 from utils import winding_angle, derivative
 import geometrik as gk
@@ -13,10 +19,17 @@ class InvalidCurve(Exception):
 
 class Curve(ABC):
 
-    def __init__(self, arg, param_names):
-        self.param_names = param_names
-        self._orientation = None
-        self._construct(deepcopy(arg))
+    """
+    Initialized either by keyword args, or by another curve
+    """
+
+    def __init__(self, *args, **kwargs):
+        assert (len(args) > 0) != (len(kwargs) > 0)
+        if len(args) == 0:
+            arg = deepcopy(kwargs)
+        else:
+            arg = deepcopy(args[0])
+        self._construct(arg)
 
     def _construct(self, arg):
         if isinstance(arg, Cartesian):
@@ -25,10 +38,6 @@ class Curve(ABC):
             self._fromAngleProfile(arg)
         elif isinstance(arg, RadiusProfile):
             self._fromRadiusProfile(arg)
-        elif isinstance(arg, (list, tuple)):
-            self._fromParams(arg)
-        elif isinstance(arg, np.ndarray):
-            self._fromNumpy(arg)
         elif isinstance(arg, dict):
             self._fromDict(arg)
         else:
@@ -36,6 +45,7 @@ class Curve(ABC):
         self._check()
 
     def xy(self):
+        """ Cartesian coordinates of curve """
         return Cartesian(self).xy
 
     @abstractmethod
@@ -45,14 +55,6 @@ class Curve(ABC):
     def _fromDict(self, d):
         for k in d:
             self.__setattr__(k, d[k])
-
-    @abstractmethod
-    def _fromParams(self, p):
-        pass
-
-    @abstractmethod
-    def _fromNumpy(self, p):
-        pass
 
     @abstractmethod
     def _fromCartesian(self, cr):
@@ -72,18 +74,19 @@ class Curve(ABC):
 
 class Cartesian(Curve):
 
-    def __init__(self, arg):
+    """
+    Initialize by supplying xy coordinates as a Nx2 ndarray, or by converting
+        another curve, e.g.
+        Cartesian(xy=np.rand(500,2))
+        Cartesian(curve_instance)
+    """
+
+    def __init__(self, *args, **kwargs):
         self.xy = None
-        super().__init__(arg, ['x', 'y'])
+        super().__init__(*args, **kwargs)
 
     def as_np(self):
         return self.xy
-
-    def _fromParams(self, p):
-        self.xy = np.stack(p, axis=1)
-
-    def _fromNumpy(self, p):
-        self.xy = np.copy(p)
 
     def _fromCartesian(self, cr):
         self.xy = cr.xy
@@ -108,21 +111,21 @@ class Cartesian(Curve):
 class AngleProfile(Curve):
     """
     Curve representation as theta(arc-length)
-        arc-length must be monotonically increasing, non-negative
+        arc-length must be monotonically increasing, non-negative.
+
+    Initialize by supplying theta and arc-length values, (keywords t & s), or
+    by converting another curve, e.g.
+        theta = np.linspace(np.pi, 500)
+        arc_length = np.linspace(0, 1, 500)
+        AngleProfile(t=theta, s=arc_length)
     """
 
-    def __init__(self, arg):
+    def __init__(self, *args, **kwargs):
         self.s, self.t = None, None
-        super().__init__(arg, ['arclen', 'theta'])
+        super().__init__(*args, **kwargs)
 
     def as_np(self):
         return np.stack([self.s, self.t], axis=1)
-
-    def _fromParams(self, p):
-        self.s, self.t = p
-
-    def _fromNumpy(self, p):
-        self.s, self.t = p[:, 0], p[:, 1]
 
     def _fromCartesian(self, cr):
         self.s = gk.euclidean_arclen(cr.xy)
@@ -155,20 +158,20 @@ class RadiusProfile(Curve):
     Curve representation as radius(theta)
         radius must be positive
         theta must be monotonically increasing / decreasing
+
+    Initialize by supplying theta and radius values, (keywords t & r), or
+    by converting another curve, e.g.
+        theta = np.linspace(np.pi, 500)
+        rads = np.linspace(0, 1, 500)
+        RadiusProfile(t=theta, r=rads)
     """
 
-    def __init__(self, arg):
+    def __init__(self, *args, **kwargs):
         self.t, self.r = None, None
-        super().__init__(arg, ['theta', 'radius'])
+        super().__init__(*args, **kwargs)
 
     def as_np(self):
         return np.stack([self.t, self.r], axis=1)
-
-    def _fromParams(self, p):
-        self.t, self.r = p
-
-    def _fromNumpy(self, p):
-        self.t, self.r = p[:, 0], p[:, 1]
 
     def _fromCartesian(self, cr):
         self.t = winding_angle(cr.xy)
@@ -198,8 +201,8 @@ class RadiusProfile(Curve):
 
 def test_consistency():
     """
-    Test that converting a curve to a different curve, and then back again, results in the
-    original curve.
+    Test that converting a curve to a different curve, and then back again,
+    yields the original curve.
     """
 
     _err_thresh = 0.05
@@ -211,23 +214,21 @@ def test_consistency():
     s = np.linspace(0, 5, n)
 
     curves = [
-        RadiusProfile(dict(t=t, r=r)),
-        RadiusProfile(dict(t=t[::-1], r=r)),
-        RadiusProfile(dict(t=t, r=r[::-1])),
-        RadiusProfile(dict(t=t[::-1], r=r[::-1])),
-        AngleProfile(dict(s=s, t=t)),
-        AngleProfile(dict(s=s, t=t[::-1])),
-        Cartesian(dict(xy=xy - xy[0])),
-        Cartesian(dict(xy=np.fliplr(xy - xy[0]))),
-        Cartesian(dict(xy=np.flipud(xy - xy[-1]))),
+        RadiusProfile(t=t, r=r),
+        RadiusProfile(t=t[::-1], r=r),
+        RadiusProfile(t=t, r=r[::-1]),
+        RadiusProfile(t=t[::-1], r=r[::-1]),
+        AngleProfile(s=s, t=t),
+        AngleProfile(s=s, t=t[::-1]),
+        Cartesian(xy=xy - xy[0]),
+        Cartesian(xy=np.fliplr(xy - xy[0])),
+        Cartesian(xy=np.flipud(xy - xy[-1])),
     ]
 
     error_reports = []
     for curve in curves:
         for cnvrt_type in [RadiusProfile, AngleProfile, Cartesian]:
             src_type = type(curve)
-            if src_type == cnvrt_type:
-                continue
 
             curve_converted = cnvrt_type(curve)
             curve_reconstructed = src_type(curve_converted)
@@ -248,39 +249,12 @@ def test_consistency():
             report = f"{src_type} -> {cnvrt_type} -> {src_type}" + " Error={:2.2f}".format(err)
             print(report)
 
-            is_error = np.max(err) > _err_thresh
-            if is_error:
+            if err > _err_thresh:
                 error_reports.append(report)
-
-            show = True
-            if show and is_error:
-                import matplotlib.pyplot as plt
-                fig, (ax1, ax2) = plt.subplots(ncols=2, nrows=1)
-                fig.set_size_inches(10, 5)
-
-                c = curve.as_np()
-                cr = curve_reconstructed.as_np()
-                cc = curve_converted.as_np()
-
-                ax1.plot(c[:, 0], c[:, 1], 'ko')
-                ax1.plot(c[0, 0], c[0, 1], 'bs')
-                ax1.plot(cr[:, 0], cr[:, 1], 'r')
-                ax1.plot(cr[0, 0], cr[0, 1], 'rs')
-                ax1.set_xlabel(curve.param_names[0])
-                ax1.set_ylabel(curve.param_names[1])
-                ax1.set_title(src_type)
-
-                ax2.plot(cc[:, 0], cc[:, 1], ':r')
-                ax2.plot(cc[0, 0], cc[0, 1], 'sr')
-                ax2.set_xlabel(curve_converted.param_names[0])
-                ax2.set_ylabel(curve_converted.param_names[1])
-                ax2.set_title(cnvrt_type)
-
-                plt.show()
 
     print("Conversion consistency test done.")
     if len(error_reports) == 0:
-        print("No major errors we found.")
+        print("No issues we found.")
     else:
         print("Major errors:")
         for error_report in error_reports:

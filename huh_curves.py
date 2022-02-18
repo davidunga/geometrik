@@ -1,45 +1,59 @@
+"""
+
+Implementing convex parametric curves described in:
+1. Huh, D. (2015). The vector space of convex curves: How to mix shapes.
+    arXiv preprint arXiv:1506.07515.
+2. Huh, D., & Sejnowski, T. J. (2015). Spectrum of power laws for curved hand
+movements. Proceedings of the National Academy of Sciences, 112(29), E3950-E3958.
+
+
+"""
+
 import numpy as np
 from dataclasses import dataclass
-from representations import CURVE_REP, Curve
+from curve_repr import RadiusProfile
 
 
 @dataclass
 class HuhParams:
     # parameters of pure shape.
-    m: int          # rotational symmetry (number of max-curvature points)
-    n: int          # period (number of rotations of the tangent to the curve)
-    eps: float      # amplitude
-    t0: float = 0   # phase
-    nu: float = 0   # frequency (=m/n)
+    m: int              # rotational symmetry (number of max-curvature points)
+    n: int              # period
+    eps: float          # amplitude
+    t0: float = None    # phase (None = use shape's "native" phase)
+    nu: float = 0       # frequency (=m/n)
 
     def __post_init__(self):
         assert self.n != 0
         self.nu = self.m / self.n
+        if self.t0 is None:
+            # phase = curvature maxima + 1-part of rotation
+            self.t0 = -.5 * np.pi / self.nu - (1 / self.m) * np.pi
 
 
 class HuhCurve:
 
     def __init__(self, params):
         """
-        Initialize curve.
+        Initialize Huh Curve.
         :param params: Either a HuhParams object, or a list of such objects.
         Examples:
             h1 = HuhCurve(HuhParams(m=3, n=2, eps=0.8))
             h2 = HuhCurve([HuhParams(m=6, n=1, eps=1.2), HuhParams(m=2, n=5, eps=0.8)])
         """
         if isinstance(params, HuhParams):
-            self.pure_curves = [params]
+            self.params = [params]
         else:
-            self.pure_curves = list(params)
-        assert all([isinstance(c, HuhParams) for c in self.pure_curves])
+            self.params = list(params)
+        assert all([isinstance(c, HuhParams) for c in self.params])
 
     def is_pure(self):
-        return len(self.pure_curves) == 1
+        return len(self.params) == 1
 
     def period(self):
         """ Get shape's period """
         _nonperiodic_n = 4  # period to use for open shapes
-        return 2 * np.pi * np.prod([c.n if c.m != 1 else _nonperiodic_n for c in self.pure_curves])
+        return 2 * np.pi * np.prod([c.n if c.m != 1 else _nonperiodic_n for c in self.params])
 
     def full_period_thetas(self, res):
         """
@@ -50,9 +64,13 @@ class HuhCurve:
         return np.linspace(0, self.period(), n)
 
     def full_period_curve(self, res):
+        """
+        Get a radius-profile curve, covering the full shape's period
+        :param res: Sampling resolution. See full_period_thetas()
+        :return: RadiusProfile instance
+        """
         t = self.full_period_thetas(res)
-        r = np.exp(self.log_r(t))
-        return Curve((t, r), CURVE_REP.RADIUS_PROFILE)
+        return RadiusProfile(t=t, r=np.exp(self.log_r(t)))
 
     def log_r(self, t: np.ndarray):
         """
@@ -61,40 +79,65 @@ class HuhCurve:
         :return: lgr[i] is the log-radius at the i-th point
         """
         lgr = 0
-        for c in self.pure_curves:
+        for c in self.params:
             lgr += c.eps * np.sin(c.nu * (t - c.t0))
         return lgr
 
     def __add__(self, other):
         """ Add two shapes """
-        return HuhCurve(self.pure_curves + other.pure_curves)
+        return HuhCurve(self.params + other.params)
 
     def __rmul__(self, scale):
         """ Multiply shape by scalar """
         return HuhCurve([HuhParams(m=c.m, n=c.n, eps=scale * c.eps, t0=c.t0)
-                         for c in self.pure_curves])
+                         for c in self.params])
 
 
 def test():
     import matplotlib.pyplot as plt
 
-    def _plot(h: HuhCurve, *args, **kwargs):
-        X = h.full_period_curve(0.1).xy()
-        plt.plot(X[:, 0], X[:, 1], *args, **kwargs)
+    def _plot(ax, h: HuhCurve, color):
+        plt.sca(ax)
+        X = h.full_period_curve(0.001).xy()
+        plt.plot(X[:, 0], X[:, 1], color)
         plt.axis('square')
 
-    h1 = HuhCurve(HuhParams(m=3, n=2, eps=0.8))
-    h2 = HuhCurve(HuhParams(m=6, n=1, eps=1.2))
-    h3 = h1 + h2
+    # pure shapes:
+    h_a = HuhCurve(HuhParams(m=3, n=2, eps=0.9))
+    h_b = HuhCurve(HuhParams(m=6, n=1, eps=1.1))
+    h_c = HuhCurve(HuhParams(m=3, n=1, eps=0.6))
 
-    _, axs = plt.subplots(ncols=3, nrows=1)
-    plt.sca(axs[0])
-    _plot(h1, 'r')
-    plt.sca(axs[1])
-    _plot(h2, 'b')
-    plt.sca(axs[2])
-    _plot(h3, 'g')
+    # new shapes from pure shapes:
+    h_ab = h_a + 2 * h_b
+    h_ac = h_a + h_c
 
+    # show:
+    fig, axs = plt.subplots(ncols=3, nrows=2)
+    fig.set_size_inches(10, 7)
+
+    # --
+    _plot(axs[0, 0], h_a, 'r')
+    p = h_a.params[0]
+    plt.title(f"[A] m={p.m}, n={p.n} eps={p.eps}")
+
+    _plot(axs[0, 1], h_b, 'r')
+    p = h_b.params[0]
+    plt.title(f"[B] m={p.m}, n={p.n} eps={p.eps}")
+
+    _plot(axs[0, 2], h_ab, 'r')
+    plt.title(f"[A + 2B]")
+    # --
+    _plot(axs[1, 0], h_a, 'g')
+    p = h_a.params[0]
+    plt.title(f"[A] m={p.m}, n={p.n} eps={p.eps}")
+
+    _plot(axs[1, 1], h_c, 'g')
+    p = h_c.params[0]
+    plt.title(f"[C] m={p.m}, n={p.n} eps={p.eps}")
+
+    _plot(axs[1, 2], h_ac, 'g')
+    plt.title(f"[A + C]")
+    # --
     plt.show()
 
 
