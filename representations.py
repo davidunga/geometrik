@@ -2,13 +2,9 @@ import numpy as np
 from utils import winding_angle, derivative
 import geometrik as gk
 from test_utils import *
-import matplotlib.pyplot as plt
-import matplotlib
 from scipy.integrate import cumulative_trapezoid
 from abc import ABC, abstractmethod
 from copy import deepcopy
-
-matplotlib.use("MacOSX")
 
 
 class InvalidCurve(Exception):
@@ -200,167 +196,96 @@ class RadiusProfile(Curve):
             raise InvalidCurve("RadiusProfile: Angle must be monotonic")
 
 
-def test_1():
-
-    a = np.linspace(np.pi / 16, .5 * 15 * np.pi / 16, 500)
-
-    s = a - a[0]
-    curves = {
-        'AP_reg': RadiusProfile(AngleProfile((s, a))),
-        'AP_flip_t': RadiusProfile(AngleProfile((s, a[::-1])))
-    }
-    curves = {
-        'RP_reg': AngleProfile(RadiusProfile((a, a))),
-        'RP_flip_t': AngleProfile(RadiusProfile((a[::-1], a))),
-        'RP_minus_t': AngleProfile(RadiusProfile((-a, a))),
-        'RP_flip_t_minus_r': AngleProfile(RadiusProfile((-a[::-1], a))),
-    }
-    keys = list(curves.keys())
-    for i in range(len(keys) - 1):
-        for j in range(i + 1, len(keys)):
-            err = np.abs(curves[keys[i]].as_np() - curves[keys[j]].as_np()).mean()
-            if err < 0.1:
-                print(f"Cannot distinguish: {keys[i]} - {keys[j]}")
-    print(".")
-
-
 def test_consistency():
-    from itertools import product
-    import warnings
-    warnings.filterwarnings("error")
+    """
+    Test that converting a curve to a different curve, and then back again, results in the
+    original curve.
+    """
 
-    curve_types = [Cartesian, AngleProfile, RadiusProfile]
+    _err_thresh = 0.05
 
-    z = np.linspace(np.pi / 16, .5 * 15 * np.pi / 16, 500)
+    xy, _ = get_shape_points('ellipse')
+    n = 500
+    r = np.linspace(.01, 2, n) ** 2
+    t = np.linspace(.01, np.pi - .01, n)
+    s = np.linspace(0, 5, n)
 
     curves = [
-        RadiusProfile(dict(t=z, r=z**2)),
-        RadiusProfile(dict(t=z[::-1], r=z ** 2)),
-        RadiusProfile(dict(t=z[::-1], r=z[::-1] ** 2)),
-        RadiusProfile(dict(t=z, r=z[::-1] ** 2)),
+        RadiusProfile(dict(t=t, r=r)),
+        RadiusProfile(dict(t=t[::-1], r=r)),
+        RadiusProfile(dict(t=t, r=r[::-1])),
+        RadiusProfile(dict(t=t[::-1], r=r[::-1])),
+        AngleProfile(dict(s=s, t=t)),
+        AngleProfile(dict(s=s, t=t[::-1])),
+        Cartesian(dict(xy=xy - xy[0])),
+        Cartesian(dict(xy=np.fliplr(xy - xy[0]))),
+        Cartesian(dict(xy=np.flipud(xy - xy[-1]))),
     ]
-    
-    errs = []
-    show = True
-    err_report = []
-    err_params = []
-    t = np.linspace(np.pi/16, .5 * 15 * np.pi/16, 500)
-    for sgn1, sgn2, d0 in product((1, -1), (1, -1), (False, True)):
 
-        for type_from in curve_types:
-            for type_to in curve_types:
+    error_reports = []
+    for curve in curves:
+        for cnvrt_type in [RadiusProfile, AngleProfile, Cartesian]:
+            src_type = type(curve)
+            if src_type == cnvrt_type:
+                continue
 
-                if type_from == type_to:
-                    continue
+            curve_converted = cnvrt_type(curve)
+            curve_reconstructed = src_type(curve_converted)
 
-                c = np.stack([t if sgn1 > 0 else t[::-1], sgn2 * np.sin(t)], axis=1)
-                if d0:
-                    c[:, 0] -= c[0, 0]
+            if src_type == Cartesian:
+                err = np.max(np.abs(curve.as_np() - curve_reconstructed.as_np()))
+            else:
+                dt = curve.t - curve_reconstructed.t
+                if dt[0] < 0:
+                    dt *= -1
+                dt -= np.round(dt[0] / (2 * np.pi)) * (2 * np.pi)
+                dt_err = np.max(np.abs(dt))
+                if src_type == RadiusProfile:
+                    err = np.max([dt_err, np.max(np.abs(curve.r - curve_reconstructed.r))])
+                else:
+                    err = np.max([dt_err, np.max(np.abs(curve.s - curve_reconstructed.s))])
 
-                if type_from == Cartesian:
-                    c -= c[0]
+            report = f"{src_type} -> {cnvrt_type} -> {src_type}" + " Error={:2.2f}".format(err)
+            print(report)
 
-                try:
-                    curve = type_from(c)
-                except InvalidCurve as e:
-                    print(e)
-                    continue
+            is_error = np.max(err) > _err_thresh
+            if is_error:
+                error_reports.append(report)
 
-                assert np.max(np.abs(c - curve.as_np())) < 1e-9
-
-                print(f"{type_from_str} -> {type_to_str}", end="")
-                curve_converted = type_to(curve)
-
-                print(f" -> {type_from_str}", end="")
-                curve_reconst = type_from(curve_converted)
-
-                try:
-                    rd = (abs(curve.t[0] - curve_reconst.t[0]) / np.pi)
-                    #print("delta t: ", abs(round(rd) - rd))
-                except:
-                    pass
-                err = np.abs(c - curve_reconst.as_np())
-                errs.append(np.max(err))
-
-                print(" Error={:2.2f}".format(err.max()))
-
-                #show = False
-                if np.max(err) > 0.01:
-                    show = True
-                    err_params.append((sgn1, sgn2, d0))
-                    err_report.append(f"{type_from_str} -> {type_to_str} -> {type_from_str}" + " Error={:2.2f}".format(np.max(err)))
-
-                if not show:
-                    continue
-
-                c_reconst = curve_reconst.as_np()
-                c_converted = curve_converted.as_np()
-
+            show = True
+            if show and is_error:
+                import matplotlib.pyplot as plt
                 fig, (ax1, ax2) = plt.subplots(ncols=2, nrows=1)
                 fig.set_size_inches(10, 5)
 
+                c = curve.as_np()
+                cr = curve_reconstructed.as_np()
+                cc = curve_converted.as_np()
+
                 ax1.plot(c[:, 0], c[:, 1], 'ko')
                 ax1.plot(c[0, 0], c[0, 1], 'bs')
-                ax1.plot(c_reconst[:, 0], c_reconst[:, 1], 'r')
-                ax1.plot(c_reconst[0, 0], c_reconst[0, 1], 'rs')
+                ax1.plot(cr[:, 0], cr[:, 1], 'r')
+                ax1.plot(cr[0, 0], cr[0, 1], 'rs')
                 ax1.set_xlabel(curve.param_names[0])
                 ax1.set_ylabel(curve.param_names[1])
-                ax1.set_title(type_from_str)
+                ax1.set_title(src_type)
 
-                ax2.plot(c_converted[:, 0], c_converted[:, 1], ':r')
-                ax2.plot(c_converted[0, 0], c_converted[0, 1], 'sr')
+                ax2.plot(cc[:, 0], cc[:, 1], ':r')
+                ax2.plot(cc[0, 0], cc[0, 1], 'sr')
                 ax2.set_xlabel(curve_converted.param_names[0])
                 ax2.set_ylabel(curve_converted.param_names[1])
-                ax2.set_title(type_to_str)
+                ax2.set_title(cnvrt_type)
 
                 plt.show()
 
-    print("---")
-    for i in range(len(err_report)):
-        print(err_params[i], err_report[i])
-
-
-def test_2():
-    t = np.linspace(np.pi/16, .5 * 15 * np.pi/16, 500)
-    s = t ** 2
-    s -= s[0]
-    curves = {
-        'reg': AngleProfile(dict(s=s, t=-t)),
-        't_flip': AngleProfile(dict(s=s, t=-t[::-1]))
-    }
-
-    for k in curves:
-        curve = curves[k]
-        c = curve.as_np()
-        crt_curve = Cartesian(curve)
-        cc = crt_curve.as_np()
-        c_recon = AngleProfile(crt_curve).as_np()
-
-        print("theta diff = {:2.2f}".format(c_recon[0,0] - c[0,0]))
-
-        fig, (ax1, ax2) = plt.subplots(ncols=2, nrows=1)
-        fig.set_size_inches(10, 5)
-
-        ax1.plot(c[:, 0], c[:, 1], 'ko')
-        ax1.plot(c[0, 0], c[0, 1], 'bs')
-        ax1.plot(c_recon[:, 0], c_recon[:, 1], 'r-')
-        ax1.plot(c_recon[0, 0], c_recon[0, 1], 'rs')
-        ax1.set_xlabel(curve.param_names[0])
-        ax1.set_ylabel(curve.param_names[1])
-        ax2.set_title(curve)
-
-        ax2.plot(cc[:, 0], cc[:, 1], ':r')
-        ax2.plot(cc[0, 0], cc[0, 1], 'sr')
-        ax2.set_xlabel(crt_curve.param_names[0])
-        ax2.set_ylabel(crt_curve.param_names[1])
-        ax2.set_title(crt_curve)
-        plt.suptitle(k)
-
-        plt.show()
-
+    print("Conversion consistency test done.")
+    if len(error_reports) == 0:
+        print("No major errors we found.")
+    else:
+        print("Major errors:")
+        for error_report in error_reports:
+            print(error_report)
 
 
 if __name__ == "__main__":
-    #test_2()
-    test_1()
     test_consistency()
