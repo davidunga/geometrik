@@ -110,14 +110,17 @@ class Cartesian(Curve):
 
 class AngleProfile(Curve):
     """
-    Curve representation as theta(arc-length)
-        arc-length must be monotonically increasing, non-negative.
+    Curve representation as theta(arc-length).
+    Arc-length must be monotonically increasing, non-negative.
 
-    Initialize by supplying theta and arc-length values, (keywords t & s), or
+    Initialize by supplying theta and arc-length values, (keywords: t & s), or
     by converting another curve, e.g.
+        # By parameters:
         theta = np.linspace(np.pi, 500)
         arc_length = np.linspace(0, 1, 500)
         AngleProfile(t=theta, s=arc_length)
+        # By conversion from Cartesian:
+        AngleProfile(Cartesian(xy=np.rand(500,2))
     """
 
     def __init__(self, *args, **kwargs):
@@ -156,10 +159,10 @@ class AngleProfile(Curve):
 class RadiusProfile(Curve):
     """
     Curve representation as radius(theta)
-        radius must be positive
-        theta must be monotonically increasing / decreasing
+    Radius must be positive
+    Theta must be monotonically increasing / decreasing (convex)
 
-    Initialize by supplying theta and radius values, (keywords t & r), or
+    Initialize by supplying theta and radius values, (keywords: t & r), or
     by converting another curve, e.g.
         theta = np.linspace(np.pi, 500)
         rads = np.linspace(0, 1, 500)

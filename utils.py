@@ -63,6 +63,10 @@ def inflection_points(X: np.ndarray):
     return ixs
 
 
+def is_convex(X: np.ndarray):
+    return len(inflection_points(X)) == 0
+
+
 def _dbg_show_drvs(X, t, n):
     import matplotlib.pyplot as plt
     colors = ('k', 'b', 'r', 'g')

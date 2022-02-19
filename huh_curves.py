@@ -11,7 +11,7 @@ movements. Proceedings of the National Academy of Sciences, 112(29), E3950-E3958
 
 import numpy as np
 from dataclasses import dataclass
-from curve_repr import RadiusProfile
+from curve_repr import RadiusProfile, Curve
 
 
 @dataclass
@@ -25,10 +25,14 @@ class HuhParams:
 
     def __post_init__(self):
         assert self.n != 0
+        assert np.gcd(self.m, self.n) == 1, "n & m must be co-prime"
         self.nu = self.m / self.n
         if self.t0 is None:
-            # phase = curvature maxima + 1-part of rotation
-            self.t0 = -.5 * np.pi / self.nu - (1 / self.m) * np.pi
+            if self.m > 0:
+                # phase = curvature maxima + one-part of rotation
+                self.t0 = -.5 * np.pi / self.nu - (1 / self.m) * np.pi
+            else:
+                self.t0 = 0
 
 
 class HuhCurve:
@@ -93,6 +97,35 @@ class HuhCurve:
                          for c in self.params])
 
 
+def convert_to_Huh(curve: Curve, max_n=10, max_frqs=5, explained_th=.9):
+    from fractions import Fraction
+
+    rp = RadiusProfile(curve)
+
+    fr = np.fft.fft(rp.r)
+    tt = rp.t / (2 * np.pi)
+    n = int(np.ceil(.5 * len(tt)) + 1)
+
+    frq = np.arange(0, n-1) / (tt[-1] - tt[0])
+    fr = fr[:n]
+
+    FR = np.abs(fr) / len(fr)
+    si = np.argsort(FR)[::-1]
+    pwr_explained = np.cumsum(FR[si] ** 2) / np.sum(FR[si] ** 2)
+
+    num_frqs = min(np.nonzero(pwr_explained >= explained_th)[0][0] + 1, max_frqs)
+    huh_params = []
+    for ix in si[:num_frqs]:
+        frc = Fraction(frq[ix]).limit_denominator(max_n)
+        m = frc.numerator
+        n = frc.denominator
+        eps = FR[ix]
+        huh_params.append(HuhParams(m=m, n=n, eps=eps))
+
+    h = HuhCurve(huh_params)
+    return h
+
+
 def test():
     import matplotlib.pyplot as plt
 
@@ -141,5 +174,29 @@ def test():
     plt.show()
 
 
+def test_2():
+    import matplotlib.pyplot as plt
+
+    def _plot(ax, h: HuhCurve, color):
+        plt.sca(ax)
+        X = h.full_period_curve(0.001).xy()
+        plt.plot(X[:, 0], X[:, 1], color)
+        plt.axis('square')
+
+    _, axs = plt.subplots(ncols=2, nrows=1)
+
+    h1 = HuhCurve(HuhParams(m=3, n=2, eps=0.8))
+    #h2 = HuhCurve(HuhParams(m=5, n=3, eps=1.2))
+    h = h1 #+ h2
+    curve = h.full_period_curve(0.01)
+    hc = convert_to_Huh(curve)
+    print(hc.params)
+
+    _plot(axs[0], h, 'r')
+    _plot(axs[1], hc, 'g')
+    plt.show()
+
+
+
 if __name__ == "__main__":
-    test()
+    test_2()
