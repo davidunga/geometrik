@@ -12,6 +12,7 @@ movements. Proceedings of the National Academy of Sciences, 112(29), E3950-E3958
 import numpy as np
 from dataclasses import dataclass
 from curve_repr import RadiusProfile, Curve
+from utils import fourier
 
 
 @dataclass
@@ -97,29 +98,31 @@ class HuhCurve:
                          for c in self.params])
 
 
-def convert_to_Huh(curve: Curve, max_n=10, max_frqs=5, explained_th=.9):
+def convert_to_Huh(curve: Curve, max_n=50, max_frqs=5, explained_th=.9):
     from fractions import Fraction
 
     rp = RadiusProfile(curve)
-
-    fr = np.fft.fft(rp.r)
-    tt = rp.t / (2 * np.pi)
-    n = int(np.ceil(.5 * len(tt)) + 1)
-
-    frq = np.arange(0, n-1) / (tt[-1] - tt[0])
-    fr = fr[:n]
-
-    FR = np.abs(fr) / len(fr)
+    fr, frq = fourier(np.log(np.abs(rp.r)), rp.t)
+    FR = (np.abs(fr) / len(fr)) ** 2
     si = np.argsort(FR)[::-1]
-    pwr_explained = np.cumsum(FR[si] ** 2) / np.sum(FR[si] ** 2)
+    pwr_explained = np.cumsum(FR[si]) / np.sum(FR[si])
 
-    num_frqs = min(np.nonzero(pwr_explained >= explained_th)[0][0] + 1, max_frqs)
+    if si[0] == 0 and pwr_explained[0] < explained_th:
+        # if the first component is DC, but other components are also needed-
+        # discard the DC. (i.e. we use the DC component only if its the only
+        # component..)
+        si = si[1:]
+        pwr_explained = np.cumsum(FR[si]) / np.sum(FR[si])
+
+    num_frqs = np.nonzero(pwr_explained >= explained_th)[0][0] + 1
+    num_frqs = min(num_frqs, max_frqs)
+
     huh_params = []
     for ix in si[:num_frqs]:
         frc = Fraction(frq[ix]).limit_denominator(max_n)
         m = frc.numerator
         n = frc.denominator
-        eps = FR[ix]
+        eps = np.sqrt(FR[ix])
         huh_params.append(HuhParams(m=m, n=n, eps=eps))
 
     h = HuhCurve(huh_params)
@@ -136,9 +139,9 @@ def test():
         plt.axis('square')
 
     # pure shapes:
-    h_a = HuhCurve(HuhParams(m=3, n=2, eps=0.9))
-    h_b = HuhCurve(HuhParams(m=6, n=1, eps=1.1))
-    h_c = HuhCurve(HuhParams(m=3, n=1, eps=0.6))
+    h_a = HuhCurve(HuhParams(m=3, n=2, eps=1.0))
+    h_b = HuhCurve(HuhParams(m=3, n=1, eps=1.2))
+    h_c = HuhCurve(HuhParams(m=6, n=1, eps=1.6))
 
     # new shapes from pure shapes:
     h_ab = h_a + 2 * h_b
@@ -185,9 +188,9 @@ def test_2():
 
     _, axs = plt.subplots(ncols=2, nrows=1)
 
-    h1 = HuhCurve(HuhParams(m=3, n=2, eps=0.8))
-    #h2 = HuhCurve(HuhParams(m=5, n=3, eps=1.2))
-    h = h1 #+ h2
+    h1 = HuhCurve(HuhParams(m=5, n=1, eps=1.8))
+    h2 = HuhCurve(HuhParams(m=5, n=3, eps=1.2))
+    h = h1 + h2
     curve = h.full_period_curve(0.01)
     hc = convert_to_Huh(curve)
     print(hc.params)
@@ -198,5 +201,19 @@ def test_2():
 
 
 
+def mess_around():
+    import matplotlib.pyplot as plt
+
+    def _plot(ax, h: HuhCurve, color):
+        plt.sca(ax)
+        X = h.full_period_curve(0.001).xy()
+        plt.plot(X[:, 0], X[:, 1], color)
+        plt.axis('square')
+
+    _, axs = plt.subplots(ncols=4, nrows=3)
+
+
+
+
 if __name__ == "__main__":
-    test_2()
+    test()

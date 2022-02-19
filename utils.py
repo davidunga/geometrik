@@ -67,6 +67,15 @@ def is_convex(X: np.ndarray):
     return len(inflection_points(X)) == 0
 
 
+def fourier(x, t):
+    F = np.fft.fft(x)
+    n = int(np.ceil(.5 * len(t)) + 1)
+    w = 2 * np.pi / (t[-1] - t[0])
+    frq = np.arange(0, n - 1) * w
+    F = F[:n]
+    return F, frq
+
+
 def _dbg_show_drvs(X, t, n):
     import matplotlib.pyplot as plt
     colors = ('k', 'b', 'r', 'g')
