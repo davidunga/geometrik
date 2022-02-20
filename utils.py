@@ -67,6 +67,10 @@ def is_convex(X: np.ndarray):
     return len(inflection_points(X)) == 0
 
 
+def angdiff(a, b):
+    return np.pi - abs(np.mod(abs(a - b), 2 * np.pi) - np.pi)
+
+
 def fourier(x, t):
     F = np.fft.fft(x)
     n = int(np.ceil(.5 * len(t)) + 1)

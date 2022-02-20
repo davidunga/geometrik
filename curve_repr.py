@@ -20,7 +20,8 @@ class InvalidCurve(Exception):
 class Curve(ABC):
 
     """
-    Initialized either by keyword args, or by another curve
+    Initialized either by keyword args, by another curve instance, or by
+        sampled curve coordinates (Nx2 np array).
     """
 
     def __init__(self, *args, **kwargs):
@@ -40,6 +41,10 @@ class Curve(ABC):
             self._fromRadiusProfile(arg)
         elif isinstance(arg, dict):
             self._fromDict(arg)
+        elif isinstance(arg, np.ndarray):
+            assert arg.ndim == 2
+            assert arg.shape[1] == 2
+            self._fromCartesian(Cartesian(xy=arg))
         else:
             raise TypeError(f"Cannot instantiate from type {type(arg)}")
         self._check()
@@ -75,10 +80,15 @@ class Curve(ABC):
 class Cartesian(Curve):
 
     """
-    Initialize by supplying xy coordinates as a Nx2 ndarray, or by converting
-        another curve, e.g.
-        Cartesian(xy=np.rand(500,2))
-        Cartesian(curve_instance)
+    Initialize by xy coordinates as a Nx2 ndarray, or by another curve.
+        e.g.
+        # by ndarray:
+        t = np.linspace(0, 1, 500)
+        xy = np.stack([t, t ** 2], axis=1)
+        Cartesian(xy=xy)
+        # by converting another curve:
+        # ap = AngleProfile(..)
+        Cartesian(ap)
     """
 
     def __init__(self, *args, **kwargs):
