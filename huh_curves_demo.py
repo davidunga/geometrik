@@ -77,3 +77,7 @@ def test():
     _plot(axs[1], hr, 'g')
     axs[1].set_title("Reconstructed")
     plt.show()
+
+
+if __name__ == "__main__":
+    demo()

@@ -1,16 +1,24 @@
 """
 
-Implementing convex parametric curves described in:
+Implementing log-radius profile representation of convex curves described in:
 1. Huh, D. (2015). The vector space of convex curves: How to mix shapes.
     arXiv preprint arXiv:1506.07515.
 2. Huh, D., & Sejnowski, T. J. (2015). Spectrum of power laws for curved hand
 movements. Proceedings of the National Academy of Sciences, 112(29), E3950-E3958.
 
+This representation facilitates an algebra of shapes, in the sense that for two
+shapes h1 & h2, represented in this manner, their weighted sum: h3 = h1 + s*h2
+(s ~real) is a visually intuitive mixture of h1 & h2.
+
+This representation is also tightly related with how the brain generates curved
+movements. Specifically, it provides insight regarding the power-law relation
+between speed and curvature in human movement. (See [2]).
+
 """
 
 import numpy as np
 from dataclasses import dataclass
-from curve_repr import RadiusProfile, Curve
+from curves import RadiusProfile, Curve
 from utils import fourier, angdiff
 from fractions import Fraction
 

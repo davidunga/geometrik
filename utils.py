@@ -49,6 +49,11 @@ def derivative(X, t, n=1):
 
 
 def winding_angle(X: np.ndarray):
+    """
+    :param X: Planar curve given as Nx2 ndarray
+    :return: thetas - 1d nparray same length as X. thetas[i] is the winding
+        angle at X[i]
+    """
     dX = np.diff(X, axis=0)
     thetas = np.unwrap(np.arctan2(dX[:, 1], dX[:, 0]))
     thetas = np.concatenate([thetas, [2 * thetas[-1] - thetas[-2]]])
@@ -64,14 +69,27 @@ def inflection_points(X: np.ndarray):
 
 
 def is_convex(X: np.ndarray):
+    """
+    Is planar curve angular-convex?
+    :param X: Planar curve given as Nx2 ndarray
+    """
     return len(inflection_points(X)) == 0
 
 
 def angdiff(a, b):
+    """ Absolute difference between angles (in radians) """
     return np.pi - abs(np.mod(abs(a - b), 2 * np.pi) - np.pi)
 
 
 def fourier(x, t):
+    """
+    FFT of x(t)
+    :param x: 1d array (can be complex)
+    :param t: array same size as x, such that t[i] is the sample time of x[i]
+    :return:
+        F, frq - 1d array, half the length of x.
+        F[i] is the fourier coeff for frequency frq[i]
+    """
     F = np.fft.fft(x)
     n = int(np.ceil(.5 * len(t)) + 1)
     w = 2 * np.pi / (t[-1] - t[0])
@@ -79,19 +97,4 @@ def fourier(x, t):
     F = F[:n]
     return F, frq
 
-
-def _dbg_show_drvs(X, t, n):
-    import matplotlib.pyplot as plt
-    colors = ('k', 'b', 'r', 'g')
-    drvs = [X] + derivative(X, t, n)
-    _, axs = plt.subplots(nrows=len(drvs), ncols=X.shape[1])
-    for i in range(len(drvs)):
-        for j in range(X.shape[1]):
-            axs[i, j].plot(drvs[i][:, j], color=colors[i % len(colors)])
-            axs[i, j].set_title(f'Order={i} Dim={j}')
-    plt.show()
-
-
-if __name__ == "__main__":
-    _dbg_show_drvs(X, t, 3)
 
