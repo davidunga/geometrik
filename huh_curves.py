@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from curve_repr import RadiusProfile, Curve
 from utils import fourier, angdiff
 from fractions import Fraction
-import matplotlib.pyplot as plt
+
 
 @dataclass
 class HuhParams:
@@ -35,6 +35,10 @@ class HuhParams:
                 self.t0 = 0
 
     def isclose(self, other):
+        """
+        Are params equal-upto-tolerance
+        """
+        assert isinstance(other, HuhParams)
         _eps_rtol = .01             # error tolerance for eps param: 1%
         _t0_atol = np.deg2rad(.1)   # error tolerance for t0 param: 0.1 degree
         if self.n != other.n or self.m != other.m:
@@ -74,8 +78,11 @@ class HuhCurve:
     def full_period_thetas(self, res):
         """
         Make linearly spaced theta values to cover the full period.
-        :param res: resolution. either number of samples (>1), or the sampling step (<1)
+        :param res: resolution. either number of samples (if int and > 1),
+            or the sampling step in radians (if float and < 1)
         """
+        assert (isinstance(res, int) and res > 1) or (isinstance(res, float) and 0 < res < 1),\
+            "resolution must be either integer > 1, or positive float < 1"
         n = res if res > 1 else int(round(self.period() / res))
         return np.linspace(0, self.period(), n)
 
@@ -109,115 +116,59 @@ class HuhCurve:
                          for c in self.params])
 
     def isclose(self, other):
+        """
+        Are curves equal-upto-tolerance
+        :param other: other HuhCurve
+        :return: boolean
+        """
+        assert isinstance(other, HuhCurve)
         if len(self.params) != len(other.params):
             return False
         return all([p.isclose(q) for p, q in zip(self.params, other.params)])
 
     @classmethod
-    def fromCruve(cls, curve: (Curve, np.ndarray),
-                  max_n=50, max_frqs=5, explained_th=.9):
+    def fromCruve(cls, curve: (Curve, np.ndarray), explained=.9, max_components=5, max_n=50):
+        """
+        Estimate HuhShape from convex curve data
+        :param curve: Either a curve instance or a sample points as Nx2 np array
+        :param explained: part of power spectrum to explain
+        :param max_components: max number of pure components
+        * The number of components is: min(max_components, n_explained) where n_explained is the
+            number of components required to explain [explained] of the power
+        :param max_n: max value of 'n' (period parameter)
+        """
 
+        # represent curve as radius-profile:
         rp = RadiusProfile(curve)
+
+        # fourier for radius-profile:
         fr, frq = fourier(np.log(np.abs(rp.r)), rp.t)
+
         FR = (np.abs(fr) / len(fr)) ** 2
         si = np.argsort(FR)[::-1]
         pwr_explained = np.cumsum(FR[si]) / np.sum(FR[si])
 
-        if si[0] == 0 and pwr_explained[0] < explained_th:
+        if si[0] == 0 and pwr_explained[0] < explained:
             # if the first component is DC, but other components are also needed-
             # discard the DC. (i.e. we use the DC component only if its the only
             # component..)
             si = si[1:]
             pwr_explained = np.cumsum(FR[si]) / np.sum(FR[si])
 
-        num_frqs = np.nonzero(pwr_explained >= explained_th)[0][0] + 1
-        num_frqs = min(num_frqs, max_frqs)
+        num_components = np.nonzero(pwr_explained >= explained)[0][0] + 1
+        num_components = min(num_components, max_components)
 
         huh_params = []
-        for ix in si[:num_frqs]:
+        for ix in si[:num_components]:
             frc = Fraction(frq[ix]).limit_denominator(max_n)
-            m = frc.numerator
-            n = frc.denominator
-            eps = np.sqrt(FR[ix])
-            huh_params.append(HuhParams(m=m, n=n, eps=eps))
+            huh_params.append(HuhParams(m=frc.numerator,
+                                        n=frc.denominator,
+                                        eps=np.sqrt(FR[ix])))
 
         return cls(huh_params)
 
 
-def _plot(ax, h: HuhCurve, color):
-    plt.sca(ax)
-    X = h.full_period_curve(0.001).xy()
-    plt.plot(X[:, 0], X[:, 1], color)
-    plt.axis('square')
-
-
-def demo():
-    # pure shapes:
-    h_a = HuhCurve(HuhParams(m=3, n=2, eps=1.0))
-    h_b = HuhCurve(HuhParams(m=3, n=1, eps=1.2))
-    h_c = HuhCurve(HuhParams(m=6, n=1, eps=1.6))
-
-    # new shapes from pure shapes:
-    h_ab = h_a + h_b
-    h_ac = h_a + h_c
-
-    # show:
-    fig, axs = plt.subplots(ncols=3, nrows=2)
-    fig.set_size_inches(10, 7)
-
-    # --
-    _plot(axs[0, 0], h_a, 'r')
-    p = h_a.params[0]
-    plt.title(f"[A] m={p.m}, n={p.n} eps={p.eps}")
-
-    _plot(axs[0, 1], h_b, 'r')
-    p = h_b.params[0]
-    plt.title(f"[B] m={p.m}, n={p.n} eps={p.eps}")
-
-    _plot(axs[0, 2], h_ab, 'r')
-    plt.title(f"[A+B]")
-    # --
-    _plot(axs[1, 0], h_a, 'g')
-    p = h_a.params[0]
-    plt.title(f"[A] m={p.m}, n={p.n} eps={p.eps}")
-
-    _plot(axs[1, 1], h_c, 'g')
-    p = h_c.params[0]
-    plt.title(f"[C] m={p.m}, n={p.n} eps={p.eps}")
-
-    _plot(axs[1, 2], h_ac, 'g')
-    plt.title(f"[A+C]")
-    # --
-    plt.show()
-
-
-def test():
-
-    h = HuhCurve([HuhParams(m=5, n=1, eps=1.8),
-                  HuhParams(m=5, n=3, eps=1.2)])
-    curve = h.full_period_curve(0.01).xy()
-    hr = HuhCurve.fromCruve(curve)
-
-    print("Testing reconstruction of HuhCurve from xy samples.")
-    print("Original curve:")
-    for p in h.params:
-        print(" ", p)
-    print("Reconstructed curve:")
-    for p in hr.params:
-        print(" ", p)
-
-    if hr.isclose(h):
-        print("SUCCESSFUL reconstruction.")
-    else:
-        print("FAILED reconstruction.")
-
-    _, axs = plt.subplots(ncols=2, nrows=1)
-    _plot(axs[0], h, 'r')
-    axs[0].set_title("Original")
-    _plot(axs[1], hr, 'g')
-    axs[1].set_title("Reconstructed")
-    plt.show()
-
-
 if __name__ == "__main__":
-    demo()
+    from huh_curves_demo import demo, test
+    test()
+
