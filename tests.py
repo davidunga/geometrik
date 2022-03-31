@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from geometrik import *
+from measures import *
 from metrics import curvature_mse
 from test_utils import *
 
@@ -108,5 +108,5 @@ def test_metrics(shape=None):
 
 if __name__ == "__main__":
     #show_geometric_properties('sine')
-    #test_invariance()
-    test_metrics()
+    test_invariance()
+    #test_metrics()

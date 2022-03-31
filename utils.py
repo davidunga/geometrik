@@ -98,3 +98,45 @@ def fourier(x, t):
     return F, frq
 
 
+def find_affine_tform(X: np.ndarray, Y: np.ndarray):
+    """
+    Find affine transform A, s.t. the error |X-AY| is minimized
+    :param X: Planar curve given as Nx2 ndarray
+    :param Y: Planar curve given as Nx2 ndarray
+    :return: A - 2x3 matrix, the top two rows of the transformation matrix,
+        the full matrix is given by: [A,[0,0,1]]
+    """
+    n = len(X)
+    A = np.c_[X, np.ones(n)].T @ np.linalg.pinv(np.c_[Y, np.ones(n)].T)
+    A = A[:2]
+    return A[:2]
+
+
+def apply_affine_tform(A: np.ndarray, X: np.ndarray):
+    """
+    Transform curve X using affine matrix A
+    :param A: 2x3 affine matrix
+    :param X: Planar curve given as Nx2 ndarray
+    :return: Curve, same size as X
+    """
+    return (A[:, :2] @ X.T).T + A[:, 2]
+
+
+def procrustes_metric(X: np.ndarray, Y: np.ndarray):
+    """
+    Distance between curves X & Y
+    :param X: Planar curve given as Nx2 ndarray
+    :param Y: Planar curve given as Nx2 ndarray
+    :return: scalar. the distance between X & Y
+    """
+    return np.sum((Y - X) ** 2) / np.sum((X - X.mean(axis=0)) ** 2)
+
+
+if __name__ == "__main__":
+
+    t = np.linspace(0, 2*np.pi, 500)
+    X = np.c_[2 * np.sin(t), t ** 2]
+    Y = np.c_[np.sin(t), 6 * t ** 3] + np.array([4,-8])
+    A = find_affine_tform(X, Y)
+    dist = procrustes_metric(X, apply_affine_tform(A, Y))
+    print(dist)

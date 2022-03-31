@@ -6,7 +6,7 @@ Allows parameterizing curves as Cartesian, Radius-Profile, or Angle-Profile, and
 
 import numpy as np
 from utils import winding_angle, derivative
-import geometrik as gk
+import measures as gk
 from test_utils import *
 from scipy.integrate import cumulative_trapezoid
 from abc import ABC, abstractmethod
