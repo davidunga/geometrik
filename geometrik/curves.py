@@ -4,8 +4,8 @@ Allows parameterizing curves as Cartesian, Radius-Profile, or Angle-Profile, and
     converting between the representations.
 """
 
-from utils import winding_angle, derivative
-import measures as gk
+from geometrik.utils import winding_angle, derivative
+from geometrik.measures import euclidean_arclen, euclidean_curvature
 from scipy.integrate import cumulative_trapezoid
 from abc import ABC, abstractmethod
 from copy import deepcopy
@@ -139,7 +139,7 @@ class AngleProfile(Curve):
         return np.stack([self.s, self.t], axis=1)
 
     def _fromCartesian(self, cr):
-        self.s = gk.euclidean_arclen(cr.xy)
+        self.s = euclidean_arclen(cr.xy)
         self.t = winding_angle(cr.xy)
 
     def _fromAngleProfile(self, ap):
@@ -186,7 +186,7 @@ class RadiusProfile(Curve):
 
     def _fromCartesian(self, cr):
         self.t = winding_angle(cr.xy)
-        self.r = gk.euclidean_curvature(cr.xy) ** -1
+        self.r = euclidean_curvature(cr.xy) ** -1
         if self.r[0] < 0:
             self.r *= -1
             self.t += np.sign(self.t[-1] - self.t[0]) * np.pi

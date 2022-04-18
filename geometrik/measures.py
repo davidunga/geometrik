@@ -1,19 +1,11 @@
 import numpy as np
-from enum import Enum
-from utils import derivative, extrap_boundaries, randmat, winding_angle
+
+from geometrik.geometries import GEOMETRY, GEOMETRIES
+from geometrik.utils import derivative, extrap_boundaries, randmat, winding_angle
 from scipy.integrate import cumulative_trapezoid
 from scipy.interpolate import interp1d
 
 # =========================================================
-
-
-class GEOMETRY(Enum):
-    FULL_AFFINE = 'full_affine'
-    EQUI_AFFINE = 'equi_affine'
-    EUCLIDEAN = 'euclidean'
-
-
-GEOMETRIES = [e for e in GEOMETRY]
 
 
 def _check_curve(X: np.ndarray, geom: GEOMETRY = None):

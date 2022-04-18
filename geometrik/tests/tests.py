@@ -1,8 +1,7 @@
-import numpy as np
 import matplotlib.pyplot as plt
 
-from measures import *
-from metrics import curvature_mse
+from geometrik.measures import *
+from geometrik.metrics import curvature_mse
 from test_utils import *
 
 

@@ -2,7 +2,7 @@
 Metric of curve similarities under different representations & geometries
 """
 
-from measures import *
+from geometrik.measures import *
 
 
 def _make_randstable(metric_fnc, geom: GEOMETRY, itrs=50):

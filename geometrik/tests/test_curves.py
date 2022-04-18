@@ -1,4 +1,4 @@
-from curves import *
+from geometrik.curves import *
 from test_utils import get_shape_points
 
 

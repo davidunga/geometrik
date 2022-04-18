@@ -1,4 +1,4 @@
-from huh_curves import HuhCurve, HuhParams
+from geometrik.huh_curves import HuhCurve, HuhParams
 import matplotlib.pyplot as plt
 
 

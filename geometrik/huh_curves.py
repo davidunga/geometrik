@@ -18,8 +18,8 @@ between speed and curvature in human movement. (See [2]).
 
 import numpy as np
 from dataclasses import dataclass
-from curves import RadiusProfile, Curve
-from utils import fourier, angdiff
+from geometrik.curves import RadiusProfile, Curve
+from geometrik.utils import fourier, angdiff
 from fractions import Fraction
 
 
