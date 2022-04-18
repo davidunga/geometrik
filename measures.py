@@ -215,14 +215,3 @@ def rand_transform(X: np.ndarray, geom: GEOMETRY):
         raise ValueError("Unknown geometry")
     XX = np.dot(m, X.T).T
     return XX
-
-
-if __name__ == "__main__":
-    from test_utils import get_shape_points
-    import matplotlib.pyplot as plt
-    X, _ = get_shape_points('ellipse', b=1)
-    plt.plot(euclidean_curvature(2 * X))
-    plt.ylim([-3, 3])
-    plt.show()
-    pass
-

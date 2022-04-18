@@ -1,6 +1,4 @@
-import sys
-if 'HuhCurve' not in sys.modules:
-    from huh_curves import HuhCurve, HuhParams
+from huh_curves import HuhCurve, HuhParams
 import matplotlib.pyplot as plt
 
 
@@ -80,4 +78,5 @@ def test():
 
 
 if __name__ == "__main__":
+    test()
     demo()

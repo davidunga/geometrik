@@ -175,8 +175,3 @@ class HuhCurve:
 
         return cls(huh_params)
 
-
-if __name__ == "__main__":
-    from huh_curves_demo import demo, test
-    test()
-
