@@ -75,6 +75,7 @@ class Curve(ABC):
         pass
 
 
+
 class Cartesian(Curve):
 
     """

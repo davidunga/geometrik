@@ -1,8 +1,10 @@
 import matplotlib.pyplot as plt
 
-from geometrik.measures import *
-from geometrik.metrics import curvature_mse
-from test_utils import *
+from geometrik import measures, metrics, utils
+from geometrik.geometries import GEOMETRY, GEOMETRIES
+from test_utils import get_shape_points
+import numpy as np
+from itertools import combinations_with_replacement
 
 
 def test_equi_affine():
@@ -19,7 +21,7 @@ def test_equi_affine():
 
     for shape in k1_per_shape:
         X, _ = get_shape_points(shape, b=b)
-        k1 = equi_affine_curvature(X)
+        k1 = measures.equi_affine_curvature(X)
         err = np.max(np.abs(k1 - k1_per_shape[shape]))
         print(shape.upper())
         print("Expected: {:2.2f}, Got: {:2.2f}, Error={:2.2f}".format(
@@ -35,13 +37,12 @@ def test_equi_affine():
     plt.show()
 
 
-def test_invariance():
+def test_measures():
 
     np.random.seed(1)
 
     _eps = 1e-4
     itrs = 50
-    test_result = "PASSED"
 
     def _coef_of_var(m):
         mu = np.mean(m, axis=0)
@@ -49,44 +50,40 @@ def test_invariance():
         return np.median(sd / np.maximum(mu, _eps))
 
     def _do_test(geom, tform_geom):
+        assert geom.value <= tform_geom.value
         K = np.zeros((itrs, len(X)))
         S = np.zeros((itrs, len(X)))
         for itr in range(itrs):
-            XX = rand_transform(X, tform_geom)
-            K[itr, :] = curvature(XX, geom)
-            S[itr, :] = arclen(XX, geom)
+            XX = utils.rand_transform(X, tform_geom)
+            K[itr, :] = measures.curvature(XX, geom)
+            S[itr, :] = measures.arclen(XX, geom)
 
-        print(f'{geom.value} properties, under {tform_geom.value} transform:')
+        print(f'{geom.name} properties, under {tform_geom.name} transform:', end=" ")
         cv_k = _coef_of_var(K)
         cv_s = _coef_of_var(S)
-        print(" std-vs-avg: curvature={:2.3f} arclength={:2.3f}".format(cv_k, cv_s), end=" ")
+        print("Std-vs-Avg: Curvature={:2.3f} Arclength={:2.3f}".format(cv_k, cv_s), end=" ")
 
-        if (geom.value == tform_geom.value) == (max(cv_k, cv_s) < 1e-2):
-            print(" PASSED.")
-        else:
-            test_result = "FAILED"
-            print(" FAILED.")
+        return (geom == tform_geom) == (max(cv_k, cv_s) < 1e-2)
 
     print("-- Invariance test:")
     print("Testing that G-curvature and G-arclength of a curve remain unchanged under G-transformation.")
 
     X, _ = get_shape_points('ellipse')
-    _do_test(geom=GEOMETRY.FULL_AFFINE, tform_geom=GEOMETRY.FULL_AFFINE)
-    _do_test(geom=GEOMETRY.EQUI_AFFINE, tform_geom=GEOMETRY.FULL_AFFINE)
-    _do_test(geom=GEOMETRY.EQUI_AFFINE, tform_geom=GEOMETRY.EQUI_AFFINE)
-    _do_test(geom=GEOMETRY.EUCLIDEAN, tform_geom=GEOMETRY.EQUI_AFFINE)
-    _do_test(geom=GEOMETRY.EUCLIDEAN, tform_geom=GEOMETRY.EUCLIDEAN)
+    results = []
+    for (geom, tform_geom) in combinations_with_replacement(GEOMETRIES, 2):
+        results.append(_do_test(geom=geom, tform_geom=tform_geom))
+        print("PASSED" if results[-1] else "FAILED")
 
-    print("test " + test_result)
+    print("Test " + ("PASSED" if all(results) else "FAILED"))
 
 
 def show_geometric_properties(shape):
     X, _ = get_shape_points(shape)
     _, axs = plt.subplots(nrows=2, ncols=3)
     for ix, geom in enumerate(GEOMETRIES):
-        axs[0, ix].plot(arclen(X, geom), 'r')
-        axs[1, ix].plot(curvature(X, geom), 'c')
-        axs[0, ix].set_title(geom.value)
+        axs[0, ix].plot(measures.arclen(X, geom), 'r')
+        axs[1, ix].plot(measures.curvature(X, geom), 'c')
+        axs[0, ix].set_title(geom.name)
     axs[0, 0].set_ylabel('Arclen')
     axs[1, 0].set_ylabel('Curvature')
     plt.suptitle(shape)
@@ -98,35 +95,28 @@ def test_metrics(shape=None):
     shape = 'ellipse' if shape is None else shape
 
     X, _ = get_shape_points(shape)
-    test_result = "PASSED"
 
     print("--- Metrics test:")
     print("Testing that G-distance between two g-similar curves is non-zero if and only if g != G")
     print("Testing metric using shape=" + shape)
 
     def _do_test(metric_geom, tform_geom):
+        assert metric_geom.value <= tform_geom.value
+
         # metric = make_randstable(curvature_mse, metric_geom, itrs=10)
         # mse = metric(X, rand_transform(X, tform_geom))
-        mse = curvature_mse(X, rand_transform(X, tform_geom), metric_geom)
+        mse = metrics.curvprofile_pdist([X, utils.rand_transform(X, tform_geom)], metric_geom)
         print("Transform={:12s} Metric={:12s} MSE={:10.2g}".format(
-            tform_geom.value.upper(), metric_geom.value.upper(), mse), end=" ")
+            tform_geom.name.upper(), metric_geom.name.upper(), mse), end=" ")
+        return (metric_geom == tform_geom) == (mse < 1e-2)
 
-        if (metric_geom.value == tform_geom.value) == (mse < 1e-2):
-            print(" PASSED.")
-        else:
-            test_result = "FAILED"
-            print(" FAILED: MSE should be ~0 iff the transform geometry is the same as the metric geometry")
-
-    _do_test(metric_geom=GEOMETRY.EUCLIDEAN, tform_geom=GEOMETRY.EUCLIDEAN)
-    _do_test(metric_geom=GEOMETRY.EUCLIDEAN, tform_geom=GEOMETRY.EQUI_AFFINE)
-    _do_test(metric_geom=GEOMETRY.EUCLIDEAN, tform_geom=GEOMETRY.FULL_AFFINE)
-    _do_test(metric_geom=GEOMETRY.EQUI_AFFINE, tform_geom=GEOMETRY.FULL_AFFINE)
-    _do_test(metric_geom=GEOMETRY.EQUI_AFFINE, tform_geom=GEOMETRY.EQUI_AFFINE)
-    _do_test(metric_geom=GEOMETRY.FULL_AFFINE, tform_geom=GEOMETRY.FULL_AFFINE)
-
-    print("test " + test_result)
+    results = []
+    for (metric_geom, tform_geom) in combinations_with_replacement(GEOMETRIES, 2):
+        results.append(_do_test(metric_geom=metric_geom, tform_geom=tform_geom))
+        print("PASSED" if results[-1] else "FAILED")
+    print("Test " + ("PASSED" if all(results) else "FAILED"))
 
 
 if __name__ == "__main__":
-    test_invariance()
+    test_measures()
     test_metrics()

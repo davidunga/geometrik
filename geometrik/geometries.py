@@ -2,9 +2,10 @@ from enum import Enum
 
 
 class GEOMETRY(Enum):
-    FULL_AFFINE = 'full_affine'
-    EQUI_AFFINE = 'equi_affine'
-    EUCLIDEAN = 'euclidean'
+    EUCLIDEAN = 1
+    EQUI_AFFINE = 2
+    FULL_AFFINE = 3
 
 
-GEOMETRIES = [e for e in GEOMETRY]
+GEOMETRIES = [g for g in GEOMETRY]
+

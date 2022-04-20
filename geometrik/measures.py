@@ -1,7 +1,7 @@
 import numpy as np
 
 from geometrik.geometries import GEOMETRY, GEOMETRIES
-from geometrik.utils import derivative, extrap_boundaries, randmat, winding_angle
+from geometrik.utils import derivative, extrap_boundaries, winding_angle
 from scipy.integrate import cumulative_trapezoid
 from scipy.interpolate import interp1d
 
@@ -187,23 +187,3 @@ def euclidean_curvature(X: np.ndarray):
     k2 = derivative(s, t)[0]
     return k2
 
-
-def rand_transform(X: np.ndarray, geom: GEOMETRY):
-    """
-    Randomly transform curve in a manner that maintains invariance under given geometry
-    :param X: Curve to transform (2d ndarray)
-    :param geom: Geometry for invariance
-    :return: Transformed curve (same size as input)
-    """
-    _check_curve(X)
-    if geom == GEOMETRY.FULL_AFFINE:
-        det_range = [.2, 10.0]  # constrain the determinant to avoid singularities
-        m = randmat(det=(det_range[1] - det_range[0]) * np.random.rand() + det_range[0])
-    elif geom == GEOMETRY.EQUI_AFFINE:
-        m = randmat(det=1)
-    elif geom == GEOMETRY.EUCLIDEAN:
-        m = randmat(det=1, ortho=True)
-    else:
-        raise ValueError("Unknown geometry")
-    XX = np.dot(m, X.T).T
-    return XX

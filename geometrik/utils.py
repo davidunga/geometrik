@@ -1,13 +1,33 @@
 import numpy as np
 from scipy.interpolate import interp1d
+from geometrik.geometries import GEOMETRY
 
 
-def randmat(det=None, ortho=False):
+def randmat(geom=None, det=None, ortho=None, trns=False):
     """
     Random 2d square matrix
     :param det: If given, matrix will be scaled to have this determinant
     :param ortho: If True, matrix will be orthogonal
     """
+
+    if (geom is not None) and not (det is None and ortho is None):
+        raise ValueError("geom cannot be specified together with det or ortho")
+
+    ortho = False if ortho is None else ortho
+
+    if geom is not None:
+
+        if geom == GEOMETRY.FULL_AFFINE:
+            det_range = [.1, 10.0]  # constrain the determinant to avoid singularities
+            det = (det_range[1] - det_range[0]) * np.random.rand() + det_range[0]
+        elif geom == GEOMETRY.EQUI_AFFINE:
+            det = 1
+        elif geom == GEOMETRY.EUCLIDEAN:
+            det = 1
+            ortho = True
+        else:
+            raise ValueError("Unknown geometry")
+
     m = np.random.rand(2, 2)
     if ortho:
         m[:, 1] = [m[1, 0], -m[0, 0]]
@@ -18,7 +38,21 @@ def randmat(det=None, ortho=False):
             m = np.fliplr(m)
         assert np.abs(np.linalg.det(m) - det) < 1e-6
     assert np.linalg.matrix_rank(m) == 2
+
+    if trns:
+        m = np.c_[m, np.random.randn(2, 1)]
+
     return m
+
+
+def rand_transform(X: np.ndarray, geom: GEOMETRY):
+    """
+    Randomly transform curve in a manner that maintains invariance under given geometry
+    :param X: Curve to transform (2d ndarray)
+    :param geom: Geometry for invariance
+    :return: Transformed curve (same size as input)
+    """
+    return np.dot(randmat(geom=geom), X.T).T
 
 
 def extrap_boundaries(y, x=None, b=3):
@@ -98,17 +132,17 @@ def fourier(x, t):
     return F, frq
 
 
-def find_affine_tform(X: np.ndarray, Y: np.ndarray):
+def calc_affine_tform(X: np.ndarray, Y: np.ndarray):
     """
-    Find affine transform A, s.t. the error |X-AY| is minimized
+    Find affine transform which brings X to Y, in the least-squares sense.
+    i.e., find a matrix A, s.t. the error |Y-AX| is minimized.
     :param X: Planar curve given as Nx2 ndarray
     :param Y: Planar curve given as Nx2 ndarray
     :return: A - 2x3 matrix, the top two rows of the transformation matrix,
         the full matrix is given by: [A,[0,0,1]]
     """
-    n = len(X)
-    A = np.c_[X, np.ones(n)].T @ np.linalg.pinv(np.c_[Y, np.ones(n)].T)
-    A = A[:2]
+    pad = np.ones(len(X))
+    A = np.c_[Y, pad].T @ np.linalg.pinv(np.c_[X, pad].T)
     return A[:2]
 
 
