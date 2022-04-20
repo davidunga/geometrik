@@ -164,13 +164,3 @@ def procrustes_metric(X: np.ndarray, Y: np.ndarray):
     :return: scalar. the distance between X & Y
     """
     return np.sum((Y - X) ** 2) / np.sum((X - X.mean(axis=0)) ** 2)
-
-
-if __name__ == "__main__":
-
-    t = np.linspace(0, 2*np.pi, 500)
-    X = np.c_[2 * np.sin(t), t ** 2]
-    Y = np.c_[np.sin(t), 6 * t ** 3] + np.array([4,-8])
-    A = find_affine_tform(X, Y)
-    dist = procrustes_metric(X, apply_affine_tform(A, Y))
-    print(dist)

@@ -1,5 +1,8 @@
-import numpy as np
+"""
+Curves measures, i.e., curvature and arclength, under different geometries
+"""
 
+import numpy as np
 from geometrik.geometries import GEOMETRY, GEOMETRIES
 from geometrik.utils import derivative, extrap_boundaries, winding_angle
 from scipy.integrate import cumulative_trapezoid

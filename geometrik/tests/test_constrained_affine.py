@@ -1,7 +1,7 @@
 from test_utils import get_shape_points
 import matplotlib.pyplot as plt
 from geometrik import utils
-from geometrik.geometries import GEOMETRY, GEOMETRIES
+from geometrik.geometries import GEOMETRY
 import numpy as np
 from geometrik.constrained_affine import find_transformation, TFORM
 
@@ -21,15 +21,16 @@ def test(plot=True):
     for tform_ix, tform in enumerate(TFORMS):
 
         geom = {
-            TFORM.FULL_AFINE: GEOMETRY.FULL_AFFINE,
+            TFORM.FULL_AFFINE: GEOMETRY.FULL_AFFINE,
             TFORM.ORIENTATED_AFFINE: GEOMETRY.FULL_AFFINE,
             TFORM.EQUI_AFFINE: GEOMETRY.EQUI_AFFINE,
             TFORM.EUCLIDEAN: GEOMETRY.EUCLIDEAN
         }[tform]
 
         A_gt = utils.randmat(geom=geom, trns=True)
-        if tform == TFORM.ORIENTATED_AFFINE:
-            A_gt[:2, :2] *= -1
+        if tform == TFORM.FULL_AFFINE:
+            # for testing full affine, make sure det is negative
+            A_gt[0] *= -np.sign(np.linalg.det(A_gt[:2, :2]))
 
         Y = (A_gt[:2, :2] @ X.T + A_gt[:, 2:]).T
 
@@ -53,5 +54,3 @@ def test(plot=True):
 
 if __name__ == "__main__":
     test()
-
-

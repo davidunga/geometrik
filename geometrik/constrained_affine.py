@@ -1,3 +1,7 @@
+"""
+Find linear transformations subject to constraints
+"""
+
 import numpy as np
 import scipy.optimize as opt
 from geometrik import utils
@@ -9,7 +13,7 @@ class TFORM(Enum):
     """
     Transformations of the form Ax + t, where A is subject to constraints
     """
-    FULL_AFINE = auto()             # unconstrained
+    FULL_AFFINE = auto()            # unconstrained
     ORIENTATED_AFFINE = auto()      # orientation preserving (det > 0)
     EQUI_AFFINE = auto()            # area and orientation (det = 1)
     EUCLIDEAN = auto()              # rigid (transpose = inverse)
@@ -30,7 +34,7 @@ def find_transformation(X, Y, tform: TFORM, maxiter=500, tol=1e-6):
         opt_result - optimization result
     """
 
-    if tform == TFORM.FULL_AFINE:
+    if tform == TFORM.FULL_AFFINE:
         # unconstrained
         constraints = []
         # initial guess is the analytic solution
