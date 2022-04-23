@@ -25,7 +25,8 @@ from fractions import Fraction
 
 @dataclass
 class HuhParams:
-    # parameters of pure shape.
+    """ parameters of pure shape. """
+
     m: int              # rotational symmetry (number of max-curvature points)
     n: int              # period size
     eps: float          # amplitude
@@ -41,6 +42,12 @@ class HuhParams:
                 self.t0 = -.5 * np.pi / self.nu - (1 / self.m) * np.pi
             else:
                 self.t0 = 0
+
+    @property
+    def beta(self):
+        """ beta of the jerk-minimizing speed profile along the shape (see [2]) """
+        v = self.nu
+        return (2 / 3) * (1 + .5 * v ** 2) / (1 + v ** 2 + (v ** 4) / 15)
 
     def isclose(self, other):
         """
@@ -174,4 +181,3 @@ class HuhCurve:
                                         eps=np.sqrt(FR[ix])))
 
         return cls(huh_params)
-
