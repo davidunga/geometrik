@@ -1,7 +1,7 @@
 """
 Curve Representations.
-Allows parameterizing curves as Cartesian, Radius-Profile, or Angle-Profile, and
-    converting between the representations.
+Facilitates parameterizing curves as Cartesian, Radius-Profile, or Angle-Profile, converting between
+    curve types, and sampling them.
 """
 
 from geometrik.utils import winding_angle, derivative
@@ -11,15 +11,23 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 import numpy as np
 
+
+# ---------------------------------------------------------
+
 class InvalidCurve(Exception):
+    # thrown on invalid curve parameterization
     pass
 
+
+# ---------------------------------------------------------
 
 class Curve(ABC):
 
     """
-    Initialized either by keyword args, by another curve instance, or by
-        sampled curve coordinates (Nx2 np array).
+    Abstract for Curve class. Initialize by either:
+        - Curve parameters as keyword args (specific for each curve type)
+        - Another curve instance
+        - Sampled curve coordinates (Nx2 np array)
     """
 
     def __init__(self, *args, **kwargs):
@@ -75,6 +83,7 @@ class Curve(ABC):
         pass
 
 
+# ---------------------------------------------------------
 
 class Cartesian(Curve):
 

@@ -1,16 +1,16 @@
 """
 
-Implementing log-radius profile representation of convex curves described in:
+Implementation of log-radius profile representation of convex curves described in:
 1. Huh, D. (2015). The vector space of convex curves: How to mix shapes.
     arXiv preprint arXiv:1506.07515.
 2. Huh, D., & Sejnowski, T. J. (2015). Spectrum of power laws for curved hand
-movements. Proceedings of the National Academy of Sciences, 112(29), E3950-E3958.
+    movements. Proceedings of the National Academy of Sciences, 112(29), E3950-E3958.
 
 This representation facilitates an algebra of shapes, in the sense that for two
 shapes h1 & h2, represented in this manner, their weighted sum: h3 = h1 + s*h2
 (s ~real) is a visually intuitive mixture of h1 & h2.
 
-This representation is also tightly related with how the brain generates curved
+This representation is also related with how the brain generates curved
 movements. Specifically, it provides insight regarding the power-law relation
 between speed and curvature in human movement. (See [2]).
 
@@ -23,9 +23,11 @@ from geometrik.utils import fourier, angdiff
 from fractions import Fraction
 
 
+# ---------------------------------------------------------
+
 @dataclass
 class HuhParams:
-    """ parameters of pure shape. """
+    """ Parameters of pure shape """
 
     m: int              # rotational symmetry (number of max-curvature points)
     n: int              # period size
@@ -65,16 +67,19 @@ class HuhParams:
         return True
 
 
+# ---------------------------------------------------------
+
 class HuhCurve:
 
-    def __init__(self, params):
+    def __init__(self, params: HuhParams | list[HuhParams]):
         """
-        Initialize Huh Curve.
-        :param params: Either a HuhParams object, or a list of such objects.
+        Args:
+            params: Either a HuhParams object, or a list of such objects.
         Examples:
             HuhCurve(HuhParams(m=3, n=2, eps=0.8))
             HuhCurve([HuhParams(m=6, n=1, eps=1.2), HuhParams(m=2, n=5, eps=0.8)])
         """
+
         if isinstance(params, HuhParams):
             params = [params]
         assert (isinstance(params, list) and

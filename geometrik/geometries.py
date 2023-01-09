@@ -1,3 +1,7 @@
+"""
+Supported geometries.
+"""
+
 from enum import Enum
 
 
@@ -8,4 +12,3 @@ class GEOMETRY(Enum):
 
 
 GEOMETRIES = [g for g in GEOMETRY]
-
