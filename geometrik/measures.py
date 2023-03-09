@@ -20,7 +20,7 @@ def _check_curve(X: NDArray, geom: GEOMETRY = None):
 
 
 def _check_geometry(geom):
-    if geom not in GEOMETRIES:
+    if geom not in GEOMETRIES and geom not in [g.value for g in GEOMETRIES]:
         raise TypeError("Unknown geometry")
 
 # ---------------------------------------------------------
@@ -215,4 +215,34 @@ def euclidean_curvature(X: NDArray):
     t = winding_angle(X)
     k2 = derivative(s, t)[0]
     return k2
+
+
+def euclidean_radcurv(X: NDArray):
+    """
+    Euclidean radius of curvature
+    """
+
+    _check_curve(X, GEOMETRY.EUCLIDEAN)
+
+    v = X[:-2, :]
+    u = X[1:-1, :]
+    w = X[2:, :]
+
+    a = np.linalg.norm(v - u, axis=1)
+    b = np.linalg.norm(u - w, axis=1)
+    c = np.linalg.norm(w - v, axis=1)
+
+    nm = a * b * c
+
+    dn = (a + b + c) * (b + c - a) * (a + c - b) * (a + b - c)
+    assert np.min(dn) > -1e-16
+    dn = np.sqrt(np.maximum(dn, 0))
+
+    r = np.zeros(len(X))
+    with np.errstate(divide='ignore'):
+        r[1:-1] = nm / dn
+    r[0] = r[1]
+    r[-2] = r[-1]
+
+    return r
 

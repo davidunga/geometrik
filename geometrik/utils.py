@@ -3,6 +3,70 @@ from scipy.interpolate import interp1d
 from geometrik.geometries import GEOMETRY
 
 
+def simplify_curve(X, eps, rtol=None):
+    """
+    Ramer–Douglas–Peucker.
+    Given a curve X, returns indices of points in X, such that
+        the maximal distance between X and X[indices] is eps.
+    """
+
+    vec = X[-1] - X[0]
+    norm = np.linalg.norm(vec)
+
+    def _dist_to_line(pt):
+        """ distance from a point to the line from X[0] to X[-1] """
+        if norm == 0:
+            return np.linalg.norm(X[0] - pt)
+        return np.abs(np.linalg.norm(np.cross(vec, X[0] - pt))) / norm
+
+    dists = [_dist_to_line(x) for x in X]
+    if rtol is None:
+        i = np.argmax(dists)
+    else:
+        i, i2 = np.argpartition(dists, -2)[-2:]
+        if dists[i2] > dists[i]:
+            i, i2 = i2, i
+        if dists[i] > rtol * dists[i2]:
+            i = i2
+    if dists[i] > eps:
+        return np.r_[simplify_curve(X[:i+1], eps, rtol)[:-1], i + simplify_curve(X[i:], eps, rtol)]
+    return np.array([0, len(X) - 1])
+
+
+def spatially_separated_points(X: np.ndarray, delta: float, force_last=True, momentum=True):
+    """
+    Get a subset of [X], such that the distance between two consecutive points is at least [delta].
+    Args:
+        X: N*D array of N D-dimensional points.
+        delta: minimal separation.
+        force_last: include last point, even if separation criterion is not met.
+        momentum: demand that the separation keeps increasing. reduces noise.
+    Returns:
+        index array, ixs, such that |X[ixs[i]] - X[ixs[i+1]]| >= delta
+    """
+
+    delta2 = delta ** 2
+
+    def _dist2(i_, j_):
+        return ((X[i_] - X[j_]) ** 2).sum()
+
+    bxs = np.zeros(len(X), bool)
+    last_ix = 0
+    bxs[0] = True
+    for i in range(1, len(X)):
+        if _dist2(last_ix, i) >= delta2 and (
+                (not momentum) or
+                (i == len(X) - 1) or
+                _dist2(last_ix, i) < _dist2(last_ix, i + 1)):
+            bxs[i] = True
+            last_ix = i
+
+    if force_last:
+        bxs[last_ix] = False
+        bxs[-1] = True
+    return bxs
+
+
 def randmat(geom=None, det=None, ortho=None, trns=False):
     """
     Random 2d square matrix
@@ -17,12 +81,12 @@ def randmat(geom=None, det=None, ortho=None, trns=False):
 
     if geom is not None:
 
-        if geom == GEOMETRY.FULL_AFFINE:
+        if geom.value == GEOMETRY.FULL_AFFINE.value:
             det_range = [.1, 10.0]  # constrain the determinant to avoid singularities
             det = (det_range[1] - det_range[0]) * np.random.rand() + det_range[0]
-        elif geom == GEOMETRY.EQUI_AFFINE:
+        elif geom.value == GEOMETRY.EQUI_AFFINE.value:
             det = 1
-        elif geom == GEOMETRY.EUCLIDEAN:
+        elif geom.value == GEOMETRY.EUCLIDEAN.value:
             det = 1
             ortho = True
         else:

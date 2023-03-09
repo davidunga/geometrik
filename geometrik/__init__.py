@@ -8,3 +8,4 @@ from . import geometries
 from . import huh_curves
 from . import measures
 from . import constrained_affine
+from . import spcurves
