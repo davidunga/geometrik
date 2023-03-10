@@ -33,3 +33,4 @@ packages/
 .idea/
 *.pyc
 *.egg-info/
+build/*
