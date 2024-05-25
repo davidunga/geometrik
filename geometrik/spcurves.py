@@ -40,6 +40,18 @@ class SmoothParamCurve(ABC):
         """ Curve dimensionality """
         pass
 
+    def pos(self, t: np.ndarray = None) -> np.ndarray:
+        return self(t, der=0)
+
+    def vel(self, t: np.ndarray = None) -> np.ndarray:
+        return self(t, der=1)
+
+    def acc(self, t: np.ndarray = None) -> np.ndarray:
+        return self(t, der=2)
+
+    def jrk(self, t: np.ndarray = None) -> np.ndarray:
+        return self(t, der=3)
+
     def TN(self, t=None):
         """ Tangent and normal unit vectors """
         assert self.ndim > 1
@@ -158,9 +170,12 @@ class NDSpline(SmoothParamCurve):
 
 class NumericCurve(SmoothParamCurve):
 
-    def __init__(self, X, t):
+    def __init__(self, X, t, dst_t=None):
         self._X = X
         self._t = t
+        if dst_t is not None:
+            self._X = self(dst_t)
+            self._t = dst_t
 
     def __call__(self, t=None, der=0):
 

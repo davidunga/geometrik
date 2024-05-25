@@ -9,3 +9,5 @@ from . import huh_curves
 from . import measures
 from . import constrained_affine
 from . import spcurves
+from . import spcurve_factory
+from . import invariants

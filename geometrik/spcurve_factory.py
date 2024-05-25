@@ -36,8 +36,8 @@ def make_ndspline(X: np.ndarray, t: np.ndarray = None, dx: float = None,
 
 
 def make_numeric_curve(X: np.ndarray, t: np.ndarray, dx: float, dst_t: np.ndarray = None):
-    X, t = process_sampled_curve(X, t, dx, dst_t)
-    return NumericCurve(X, t)
+    X, t = process_sampled_curve(X, t, dx)[:2]
+    return NumericCurve(X, t, dst_t=dst_t)
 
 
 def process_sampled_curve(X: np.ndarray, t: np.ndarray, dx: float = None, smooth_sig: float = .0):
@@ -46,7 +46,7 @@ def process_sampled_curve(X: np.ndarray, t: np.ndarray, dx: float = None, smooth
             X: Trajectory points
             t: Time vec
             dx: Minimal meaningful distance (Spatial resolution)
-            dst_t: Destination time vec. default = uniform sampling of t.
+            smooth_sig: Sigma for Gaussian smoothing
         Returns:
             X: Processed trajectory, same size as input
         """
