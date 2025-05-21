@@ -14,6 +14,8 @@ from scipy.interpolate import interp1d
 from geometrik.spcurves import SmoothParamCurve
 from geometrik.spcurve_factory import spatially_separated_points
 
+__all__ = ["geometric_invariants", "affine_invariants", "euclidean_invariants"]
+
 
 def geometric_invariants(crv: SmoothParamCurve) -> dict[str, np.ndarray]:
     """

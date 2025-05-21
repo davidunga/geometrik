@@ -1,5 +1,5 @@
 
-__all__ = ["curves", "utils", "metrics", "geometries", "huh_curves", "measures", "constrained_affine"]
+__all__ = ["curves", "utils", "metrics", "geometries", "huh_curves", "measures", "constrained_affine", "invariants"]
 
 from . import curves
 from . import utils

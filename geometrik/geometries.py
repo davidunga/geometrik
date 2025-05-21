@@ -28,6 +28,3 @@ def convention2geom(c: int | str) -> GEOMETRY:
             return GEOMETRY.EUCLIDEAN
         case _:
             raise ValueError("Unknown convention")
-
-
-
